@@ -42,3 +42,4 @@ See:
 ## License
 
 Same as the main project (see https://github.com/akasper/plate).
+# plate-core companion: 0.7.1 (see https://github.com/akasper/plate/releases/tag/v0.7.1)
