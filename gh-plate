@@ -16,20 +16,41 @@ def _ensure_plate_core() -> None:
 
     This is a no-op when the package is already importable (dev, pip-installed,
     or already auto-installed on a previous run).
+
+    Version locking: if PLATE_CORE_VERSION file exists next to this script,
+    we pin the install to exactly that version of plate-core. This ensures
+    that gh-plate vX.Y.Z always runs plate-core==X.Y.Z (deterministic behavior,
+    no surprise upgrades/downgrades on `gh extension upgrade plate`).
     """
     try:
         import importlib.util
         if importlib.util.find_spec("plate_core") is not None:
-            return
+            # Even if importable, we may still want to enforce the pin on upgrade.
+            # For simplicity, proceed to version check below if file present.
+            pass
     except Exception:
-        pass  # If the check itself fails we still attempt the import below.
+        pass
+
+    version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PLATE_CORE_VERSION")
+    pin = None
+    if os.path.exists(version_file):
+        with open(version_file, "r", encoding="utf-8") as f:
+            pin = f.read().strip()
+        if not pin:
+            pin = None
 
     try:
         import subprocess
-        print("plate-core not found; attempting `pip install --user plate-core` ...", file=sys.stderr)
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--user", "plate-core"]
-        )
+        if pin:
+            print(f"plate-core version lock active (gh-plate v{pin}); ensuring plate-core=={pin} ...", file=sys.stderr)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "--user", f"plate-core=={pin}"]
+            )
+        else:
+            print("plate-core not found; attempting `pip install --user plate-core` ...", file=sys.stderr)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "--user", "plate-core"]
+            )
     except Exception as exc:
         # Do not hard-fail here; the subsequent import will give the real error.
         print(f"Warning: could not auto-install plate-core: {exc}", file=sys.stderr)
